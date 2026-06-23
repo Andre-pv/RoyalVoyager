@@ -1,0 +1,244 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String        @id @default(cuid())
+  firstName          String
+  lastName           String
+  dob                DateTime
+  email              String        @unique
+  mobile             String
+  password           String
+  role               Role          @default(user)
+  preferences        Json?
+  googleAccessToken  String?
+  googleRefreshToken String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  accounts           Account[]
+  bookings           Booking[]
+  gameBookings       GameBooking[]
+  sessions           Session[]
+  showBookings       ShowBooking[]
+  waitlist           Waitlist[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Cruise {
+  id          String       @id @default(cuid())
+  name        String
+  source      String
+  destination String
+  date        DateTime
+  endDate     DateTime
+  duration    Int
+  basePrice   Float
+  ship        String       @default("MV Ocean Star")
+  imageUrl    String?
+  description String?
+  type        String       @default("luxury")
+  regionId    String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  bookings    Booking[]
+  region      Region?      @relation(fields: [regionId], references: [id])
+  games       Game[]
+  restaurants Restaurant[]
+  rooms       Room[]
+  shows       Show[]
+}
+
+model Region {
+  id      String   @id @default(cuid())
+  name    String   @unique
+  cruises Cruise[]
+}
+
+model Room {
+  id             String        @id @default(cuid())
+  cruiseId       String
+  type           String
+  deckNumber     Int           @default(8)
+  price          Float
+  totalRooms     Int
+  availableRooms Int
+  amenities      Json?
+  cruise         Cruise        @relation(fields: [cruiseId], references: [id], onDelete: Cascade)
+  roomBookings   RoomBooking[]
+}
+
+model Booking {
+  id                    String              @id @default(cuid())
+  userId                String
+  cruiseId              String
+  totalPrice            Float
+  roomNumber            String?
+  status                BookingStatus       @default(pending)
+  autoBooked            Boolean             @default(false)
+  googleCalendarEventId String?
+  notes                 String?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  cruise                Cruise              @relation(fields: [cruiseId], references: [id])
+  user                  User                @relation(fields: [userId], references: [id])
+  gameBookings          GameBooking[]
+  restaurantBookings    RestaurantBooking[]
+  roomBookings          RoomBooking[]
+  showBookings          ShowBooking[]
+}
+
+model RoomBooking {
+  id        String  @id @default(cuid())
+  bookingId String
+  roomId    String
+  quantity  Int     @default(1)
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  room      Room    @relation(fields: [roomId], references: [id])
+}
+
+model Restaurant {
+  id              String              @id @default(cuid())
+  cruiseId        String
+  name            String              @default("Main Dining Room")
+  mealType        MealType
+  slotTime        String
+  slotDate        DateTime
+  durationMinutes Int                 @default(90)
+  capacity        Int                 @default(50)
+  bookedCount     Int                 @default(0)
+  cruise          Cruise              @relation(fields: [cruiseId], references: [id], onDelete: Cascade)
+  bookings        RestaurantBooking[]
+  waitlist        Waitlist[]
+}
+
+model RestaurantBooking {
+  id           String     @id @default(cuid())
+  bookingId    String
+  restaurantId String
+  guestCount   Int        @default(1)
+  booking      Booking    @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+}
+
+model Show {
+  id              String        @id @default(cuid())
+  cruiseId        String
+  name            String
+  time            String
+  showDate        DateTime
+  durationMinutes Int           @default(60)
+  capacity        Int           @default(100)
+  bookedCount     Int           @default(0)
+  imageUrl        String?
+  cruise          Cruise        @relation(fields: [cruiseId], references: [id], onDelete: Cascade)
+  bookings        ShowBooking[]
+  waitlist        Waitlist[]
+}
+
+model ShowBooking {
+  id        String   @id @default(cuid())
+  showId    String
+  userId    String
+  bookingId String?
+  booking   Booking? @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  show      Show     @relation(fields: [showId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([showId, userId])
+}
+
+model Game {
+  id              String        @id @default(cuid())
+  cruiseId        String
+  name            String
+  time            String
+  gameDate        DateTime
+  durationMinutes Int           @default(60)
+  maxPlayers      Int           @default(20)
+  currentPlayers  Int           @default(0)
+  imageUrl        String?
+  cruise          Cruise        @relation(fields: [cruiseId], references: [id], onDelete: Cascade)
+  bookings        GameBooking[]
+  waitlist        Waitlist[]
+}
+
+model GameBooking {
+  id        String   @id @default(cuid())
+  gameId    String
+  userId    String
+  bookingId String?
+  booking   Booking? @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([gameId, userId])
+}
+
+model Waitlist {
+  id           String      @id @default(cuid())
+  userId       String
+  eventType    EventType
+  restaurantId String?
+  showId       String?
+  gameId       String?
+  position     Int
+  createdAt    DateTime    @default(now())
+  game         Game?       @relation(fields: [gameId], references: [id])
+  restaurant   Restaurant? @relation(fields: [restaurantId], references: [id])
+  show         Show?       @relation(fields: [showId], references: [id])
+  user         User        @relation(fields: [userId], references: [id])
+}
+
+enum Role {
+  user
+  admin
+}
+
+enum BookingStatus {
+  pending
+  confirmed
+  cancelled
+}
+
+enum MealType {
+  breakfast
+  lunch
+  dinner
+}
+
+enum EventType {
+  show
+  game
+  restaurant
+}
